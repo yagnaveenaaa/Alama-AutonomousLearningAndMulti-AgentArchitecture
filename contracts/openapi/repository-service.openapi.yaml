@@ -1,0 +1,156 @@
+openapi: 3.1.0
+info:
+  title: Alama Repository Service
+  version: 0.1.0
+  description: SCM installations, repository connections, webhooks, snapshots (LLD §2.4 / §5.3).
+servers:
+  - url: http://localhost:8102
+paths:
+  /health:
+    get:
+      tags: [ops]
+      responses:
+        "200":
+          description: OK
+  /v1/installations:
+    post:
+      tags: [installations]
+      summary: Register SCM installation
+      security: [{ GatewayPrincipal: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RegisterInstallationRequest"
+      responses:
+        "201":
+          description: Created
+  /v1/repositories:
+    get:
+      tags: [repositories]
+      security: [{ GatewayPrincipal: [] }]
+      responses:
+        "200":
+          description: Repository list
+  /v1/repositories/connect:
+    post:
+      tags: [repositories]
+      security: [{ GatewayPrincipal: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ConnectRepositoryRequest"
+      responses:
+        "201":
+          description: Connected
+        "409":
+          description: Already connected
+  /v1/repositories/{repository_id}:
+    get:
+      tags: [repositories]
+      security: [{ GatewayPrincipal: [] }]
+      parameters:
+        - $ref: "#/components/parameters/RepositoryId"
+      responses:
+        "200":
+          description: Detail
+    delete:
+      tags: [repositories]
+      security: [{ GatewayPrincipal: [] }]
+      parameters:
+        - $ref: "#/components/parameters/RepositoryId"
+      responses:
+        "204":
+          description: Disconnected
+  /v1/repositories/{repository_id}/reindex:
+    post:
+      tags: [repositories]
+      security: [{ GatewayPrincipal: [] }]
+      parameters:
+        - $ref: "#/components/parameters/RepositoryId"
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                ref: { type: string, nullable: true }
+      responses:
+        "202":
+          description: Snapshot requested
+  /v1/repositories/{repository_id}/snapshots:
+    get:
+      tags: [repositories]
+      security: [{ GatewayPrincipal: [] }]
+      parameters:
+        - $ref: "#/components/parameters/RepositoryId"
+      responses:
+        "200":
+          description: Snapshots
+  /v1/repositories/{repository_id}/index/status:
+    get:
+      tags: [repositories]
+      security: [{ GatewayPrincipal: [] }]
+      parameters:
+        - $ref: "#/components/parameters/RepositoryId"
+      responses:
+        "200":
+          description: Index status
+  /webhooks/{provider}:
+    post:
+      tags: [webhooks]
+      summary: Ingest SCM webhook (signature required; 202 after accept)
+      parameters:
+        - name: provider
+          in: path
+          required: true
+          schema:
+            type: string
+            enum: [github, gitlab, bitbucket]
+        - name: X-Tenant-Id
+          in: header
+          required: true
+          schema: { type: string, format: uuid }
+        - name: X-Alama-Secret-Ref
+          in: header
+          required: true
+          schema: { type: string }
+        - name: X-Hub-Signature-256
+          in: header
+          schema: { type: string }
+      responses:
+        "202":
+          description: Accepted
+        "401":
+          description: Invalid signature
+components:
+  securitySchemes:
+    GatewayPrincipal:
+      type: apiKey
+      in: header
+      name: X-Subject-Id
+  parameters:
+    RepositoryId:
+      name: repository_id
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+  schemas:
+    RegisterInstallationRequest:
+      type: object
+      required: [provider, external_installation_id, account_login, secret_ref_path]
+      properties:
+        provider: { type: string, enum: [github, gitlab, bitbucket] }
+        external_installation_id: { type: string }
+        account_login: { type: string }
+        secret_ref_path: { type: string }
+    ConnectRepositoryRequest:
+      type: object
+      required: [provider, installation_id, external_repo_id]
+      properties:
+        provider: { type: string, enum: [github, gitlab, bitbucket] }
+        installation_id: { type: string, format: uuid }
+        external_repo_id: { type: string }

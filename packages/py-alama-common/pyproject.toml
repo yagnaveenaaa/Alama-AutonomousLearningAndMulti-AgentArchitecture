@@ -1,0 +1,65 @@
+[build-system]
+requires = ["hatchling>=1.25.0"]
+build-backend = "hatchling.build"
+
+[project]
+name = "py-alama-common"
+version = "0.1.0"
+description = "Shared Alama platform primitives: errors, auth principal, logging, OpenTelemetry, retry, and HTTP helpers."
+readme = "README.md"
+requires-python = ">=3.12"
+license = { text = "Proprietary" }
+authors = [{ name = "Alama Platform Team" }]
+dependencies = [
+    "pydantic>=2.10.0",
+    "pydantic-settings>=2.6.0",
+    "structlog>=24.4.0",
+    "uuid6>=2024.7.10",
+    "opentelemetry-api>=1.28.0",
+    "opentelemetry-sdk>=1.28.0",
+    "opentelemetry-exporter-otlp-proto-grpc>=1.28.0",
+    "opentelemetry-instrumentation>=0.49b0",
+]
+
+[project.optional-dependencies]
+fastapi = [
+    "fastapi>=0.115.0",
+    "starlette>=0.41.0",
+]
+dev = [
+    "pytest>=8.3.0",
+    "pytest-asyncio>=0.24.0",
+    "mypy>=1.13.0",
+    "ruff>=0.8.0",
+    "py-alama-common[fastapi]",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/alama_common"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
+asyncio_mode = "auto"
+addopts = "-q"
+
+[tool.ruff]
+target-version = "py312"
+line-length = 100
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP", "SIM", "RUF"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/test_http_handlers.py" = ["E402"]
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+packages = ["alama_common"]
+mypy_path = "src"
+
+[[tool.mypy.overrides]]
+module = ["uuid6.*", "opentelemetry.*", "structlog.*"]
+ignore_missing_imports = true

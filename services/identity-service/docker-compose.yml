@@ -1,0 +1,37 @@
+# Local profile for identity-service only (LLD §11.2 compose profile subset).
+services:
+  postgres-identity:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: alama
+      POSTGRES_PASSWORD: alama
+      POSTGRES_DB: identity
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U alama -d identity"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    volumes:
+      - identity_pg:/var/lib/postgresql/data
+
+  identity-service:
+    build:
+      context: ../..
+      dockerfile: services/identity-service/Dockerfile
+    environment:
+      IDENTITY_ENVIRONMENT: development
+      IDENTITY_CELL_ID: local
+      IDENTITY_REGION: local
+      IDENTITY_USE_IN_MEMORY_STORE: "true"
+      IDENTITY_DATABASE_URL: postgresql+asyncpg://alama:alama@postgres-identity:5432/identity
+      IDENTITY_OTEL_ENABLED: "false"
+    ports:
+      - "8101:8101"
+    depends_on:
+      postgres-identity:
+        condition: service_healthy
+
+volumes:
+  identity_pg:

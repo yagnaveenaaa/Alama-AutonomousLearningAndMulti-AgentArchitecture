@@ -1,0 +1,241 @@
+openapi: 3.1.0
+info:
+  title: Alama Identity Service
+  version: 0.1.0
+  description: |
+    Tenants, subjects, role bindings, and API keys.
+    Bound to LLD §2.3 / §5.2.
+servers:
+  - url: http://localhost:8101
+    description: Local cell
+paths:
+  /health:
+    get:
+      tags: [ops]
+      summary: Liveness
+      responses:
+        "200":
+          description: Service is healthy
+  /v1/tenants:
+    post:
+      tags: [tenants]
+      summary: Create tenant with owner subject and owner role
+      operationId: createTenant
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateTenantRequest"
+      responses:
+        "201":
+          description: Tenant created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TenantResponse"
+        "409":
+          description: Slug conflict
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /v1/tenants/me:
+    get:
+      tags: [tenants]
+      summary: Get caller's primary tenant
+      operationId: getTenantMe
+      security:
+        - GatewayPrincipal: []
+      responses:
+        "200":
+          description: Tenant
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TenantResponse"
+        "401":
+          description: Unauthenticated
+  /v1/subjects/me:
+    get:
+      tags: [subjects]
+      summary: Get caller subject and roles
+      operationId: getSubjectMe
+      security:
+        - GatewayPrincipal: []
+      responses:
+        "200":
+          description: Subject with roles
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SubjectResponse"
+  /v1/tenants/{tenant_id}/subjects:
+    get:
+      tags: [subjects]
+      summary: List subjects in tenant
+      operationId: listSubjects
+      security:
+        - GatewayPrincipal: []
+      parameters:
+        - $ref: "#/components/parameters/TenantId"
+        - name: cursor
+          in: query
+          schema:
+            type: string
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 25
+            minimum: 1
+            maximum: 100
+      responses:
+        "200":
+          description: Subject page
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SubjectListResponse"
+  /v1/tenants/{tenant_id}/api-keys:
+    post:
+      tags: [api-keys]
+      summary: Issue API key (plaintext returned once)
+      operationId: createApiKey
+      security:
+        - GatewayPrincipal: []
+      parameters:
+        - $ref: "#/components/parameters/TenantId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateApiKeyRequest"
+      responses:
+        "201":
+          description: API key issued
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CreateApiKeyResponse"
+  /v1/tenants/{tenant_id}/api-keys/{api_key_id}:
+    delete:
+      tags: [api-keys]
+      summary: Revoke API key
+      operationId: revokeApiKey
+      security:
+        - GatewayPrincipal: []
+      parameters:
+        - $ref: "#/components/parameters/TenantId"
+        - name: api_key_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "204":
+          description: Revoked
+components:
+  securitySchemes:
+    GatewayPrincipal:
+      type: apiKey
+      in: header
+      name: X-Subject-Id
+      description: |
+        Gateway-forwarded subject UUID. Also requires X-Tenant-Id.
+  parameters:
+    TenantId:
+      name: tenant_id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+  schemas:
+    CreateTenantRequest:
+      type: object
+      required: [slug, name, home_region, home_cell, data_residency, owner_external_idp_sub]
+      properties:
+        slug: { type: string }
+        name: { type: string }
+        home_region: { type: string }
+        home_cell: { type: string }
+        isolation_tier: { type: string, enum: [shared, dedicated], default: shared }
+        plan: { type: string, default: free }
+        data_residency: { type: string }
+        owner_external_idp_sub: { type: string }
+        owner_email: { type: string, nullable: true }
+        owner_display_name: { type: string, nullable: true }
+    TenantResponse:
+      type: object
+      required: [id, slug, name, home_region, home_cell, isolation_tier, plan, status, data_residency]
+      properties:
+        id: { type: string, format: uuid }
+        slug: { type: string }
+        name: { type: string }
+        home_region: { type: string }
+        home_cell: { type: string }
+        isolation_tier: { type: string }
+        plan: { type: string }
+        status: { type: string }
+        data_residency: { type: string }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+        version: { type: integer }
+    SubjectResponse:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        tenant_id: { type: string, format: uuid }
+        external_idp_sub: { type: string }
+        email: { type: string, nullable: true }
+        display_name: { type: string, nullable: true }
+        status: { type: string }
+        roles:
+          type: array
+          items: { type: string }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+    SubjectListResponse:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/SubjectResponse"
+        next_cursor: { type: string, nullable: true }
+    CreateApiKeyRequest:
+      type: object
+      required: [name, scopes]
+      properties:
+        name: { type: string }
+        scopes:
+          type: array
+          items: { type: string }
+          minItems: 1
+        expires_at: { type: string, format: date-time, nullable: true }
+        subject_id: { type: string, format: uuid, nullable: true }
+    CreateApiKeyResponse:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        key_prefix: { type: string }
+        key_once: { type: string, description: Plaintext returned only once }
+        name: { type: string }
+        scopes:
+          type: array
+          items: { type: string }
+        expires_at: { type: string, format: date-time, nullable: true }
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: object
+          properties:
+            code: { type: string }
+            message: { type: string }
+            details: { type: object }
+            request_id: { type: string, nullable: true }
+            trace_id: { type: string, nullable: true }

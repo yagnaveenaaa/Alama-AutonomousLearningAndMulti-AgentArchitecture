@@ -1,0 +1,88 @@
+openapi: 3.1.0
+info:
+  title: Alama Tool Gateway
+  version: 0.1.0
+  description: Internal ToolGateway.MintCapability / Invoke (LLD §5.7).
+paths:
+  /health:
+    get:
+      operationId: health
+      responses:
+        "200":
+          description: Healthy
+  /v1/capabilities/mint:
+    post:
+      operationId: mintCapability
+      parameters:
+        - name: X-Tenant-Id
+          in: header
+          required: true
+          schema: {type: string, format: uuid}
+        - name: X-Subject-Id
+          in: header
+          required: true
+          schema: {type: string, format: uuid}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: "#/components/schemas/MintCapabilityRequest"}
+      responses:
+        "200":
+          description: Capability minted
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/MintCapabilityResponse"}
+        "403":
+          description: Policy denied
+  /v1/invoke:
+    post:
+      operationId: invoke
+      parameters:
+        - name: X-Tenant-Id
+          in: header
+          required: true
+          schema: {type: string, format: uuid}
+        - name: X-Subject-Id
+          in: header
+          required: true
+          schema: {type: string, format: uuid}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: "#/components/schemas/InvokeRequest"}
+      responses:
+        "200":
+          description: Tool result + receipt
+        "401":
+          description: Invalid/expired capability
+        "403":
+          description: Policy or capability mismatch
+components:
+  schemas:
+    MintCapabilityRequest:
+      type: object
+      required: [task_id, tool]
+      properties:
+        task_id: {type: string, format: uuid}
+        tool: {type: string}
+        paths: {type: array, items: {type: string}, default: ["."]}
+    MintCapabilityResponse:
+      type: object
+      required: [token, token_id, tool, paths, expires_at, policy_version]
+      properties:
+        token: {type: string}
+        token_id: {type: string, format: uuid}
+        tool: {type: string}
+        paths: {type: array, items: {type: string}}
+        expires_at: {type: string, format: date-time}
+        policy_version: {type: string}
+    InvokeRequest:
+      type: object
+      required: [task_id, tool, capability]
+      properties:
+        task_id: {type: string, format: uuid}
+        tool: {type: string}
+        args: {type: object, additionalProperties: true}
+        capability: {type: string}

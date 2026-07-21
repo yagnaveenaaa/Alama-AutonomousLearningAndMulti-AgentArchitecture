@@ -1,0 +1,30 @@
+openapi: 3.1.0
+info:
+  title: Alama Audit Service
+  version: 0.1.0
+  description: Append-only audit events with integrity chain (LLD §2.11 / §5.6).
+servers:
+  - url: http://localhost:8109
+paths:
+  /health:
+    get:
+      tags: [ops]
+      responses:
+        "200": {description: Healthy}
+  /v1/audit/events:
+    get:
+      tags: [audit]
+      summary: List audit events
+      responses:
+        "200": {description: Event list}
+    post:
+      tags: [audit]
+      summary: Ingest audit event
+      responses:
+        "201": {description: Created}
+  /v1/audit/integrity:
+    get:
+      tags: [audit]
+      summary: Verify tenant hash chain
+      responses:
+        "200": {description: Integrity result}

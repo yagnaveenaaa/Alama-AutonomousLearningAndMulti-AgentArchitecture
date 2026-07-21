@@ -1,0 +1,57 @@
+openapi: 3.1.0
+info:
+  title: Alama Tool Gateway
+  version: 0.1.0
+paths:
+  /v1/capabilities/mint:
+    post:
+      operationId: mintCapability
+      parameters:
+        - name: X-Tenant-Id
+          in: header
+          required: true
+          schema: {type: string, format: uuid}
+        - name: X-Subject-Id
+          in: header
+          required: true
+          schema: {type: string, format: uuid}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [task_id, tool]
+              properties:
+                task_id: {type: string, format: uuid}
+                tool: {type: string}
+                paths: {type: array, items: {type: string}}
+      responses:
+        "200": {description: Capability minted}
+  /v1/invoke:
+    post:
+      operationId: invoke
+      parameters:
+        - name: X-Tenant-Id
+          in: header
+          required: true
+          schema: {type: string, format: uuid}
+        - name: X-Subject-Id
+          in: header
+          required: true
+          schema: {type: string, format: uuid}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [task_id, tool, capability]
+              properties:
+                task_id: {type: string, format: uuid}
+                tool: {type: string}
+                args: {type: object}
+                capability: {type: string}
+      responses:
+        "200": {description: Tool result + receipt}
+        "403": {description: Denied}

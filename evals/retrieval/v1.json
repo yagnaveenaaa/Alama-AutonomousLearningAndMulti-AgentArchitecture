@@ -1,0 +1,15 @@
+{
+  "suite_version": "v1",
+  "cases": [
+    {
+      "query_id": "q1",
+      "query": "Where is Greeter.hello defined?",
+      "expected_evidence_ids": ["src/demo.py:Greeter.hello"]
+    },
+    {
+      "query_id": "q2",
+      "query": "How do I add two integers?",
+      "expected_evidence_ids": ["src/demo.py:add"]
+    }
+  ]
+}

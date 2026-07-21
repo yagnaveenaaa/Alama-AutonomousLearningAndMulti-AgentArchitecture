@@ -1,0 +1,69 @@
+openapi: 3.1.0
+info:
+  title: Alama Model Gateway
+  version: 0.1.0
+paths:
+  /v1/complete:
+    post:
+      operationId: complete
+      parameters:
+        - name: X-Tenant-Id
+          in: header
+          required: true
+          schema: {type: string, format: uuid}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [purpose]
+              properties:
+                purpose: {type: string}
+                template_name: {type: [string, "null"]}
+                template_inputs: {type: object}
+                messages: {type: array, items: {type: object}}
+      responses:
+        "200": {description: Completion}
+        "429": {description: Quota exceeded}
+  /v1/embed:
+    post:
+      operationId: embed
+      parameters:
+        - name: X-Tenant-Id
+          in: header
+          required: true
+          schema: {type: string, format: uuid}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [purpose, texts]
+              properties:
+                purpose: {type: string}
+                texts: {type: array, items: {type: string}}
+      responses:
+        "200": {description: Embeddings}
+  /v1/rerank:
+    post:
+      operationId: rerank
+      parameters:
+        - name: X-Tenant-Id
+          in: header
+          required: true
+          schema: {type: string, format: uuid}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [purpose, query, documents]
+              properties:
+                purpose: {type: string}
+                query: {type: string}
+                documents: {type: array, items: {type: string}}
+      responses:
+        "200": {description: Reranked documents}

@@ -1,0 +1,10 @@
+{
+  "suite_version": "v1",
+  "cases": [
+    {
+      "case_id": "c1",
+      "tokens": 1200,
+      "usd_micros": 4000
+    }
+  ]
+}

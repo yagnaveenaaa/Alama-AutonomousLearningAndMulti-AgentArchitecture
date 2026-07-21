@@ -1,0 +1,169 @@
+openapi: 3.1.0
+info:
+  title: Alama Policy Service
+  version: 0.1.0
+  description: |
+    Versioned policy bundles and allow/deny/approval evaluation.
+    Bound to LLD §2.6 / §5.6.
+servers:
+  - url: http://localhost:8104
+    description: Local cell
+paths:
+  /health:
+    get:
+      tags: [ops]
+      summary: Liveness
+      responses:
+        "200":
+          description: Service is healthy
+  /v1/policy/evaluate:
+    post:
+      tags: [policy]
+      summary: Evaluate policy (or dry-run)
+      operationId: evaluatePolicy
+      security:
+        - GatewayPrincipal: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/EvaluatePolicyRequest"
+      responses:
+        "200":
+          description: Decision
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PolicyDecision"
+        "404":
+          description: Bundle not found
+  /v1/policy/bundles:
+    get:
+      tags: [policy]
+      summary: List policy bundle versions
+      operationId: listPolicyBundles
+      security:
+        - GatewayPrincipal: []
+      responses:
+        "200":
+          description: Bundle list
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PolicyBundleList"
+    post:
+      tags: [policy]
+      summary: Create or update a draft bundle
+      operationId: upsertDraftBundle
+      security:
+        - GatewayPrincipal: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpsertDraftBundleRequest"
+      responses:
+        "201":
+          description: Draft bundle saved
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PolicyBundle"
+  /v1/policy/bundles/{version}/activate:
+    post:
+      tags: [policy]
+      summary: Activate a bundle version
+      operationId: activatePolicyBundle
+      security:
+        - GatewayPrincipal: []
+      parameters:
+        - name: version
+          in: path
+          required: true
+          schema: {type: string}
+      responses:
+        "200":
+          description: Activated bundle
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PolicyBundle"
+        "404":
+          description: Bundle not found
+components:
+  securitySchemes:
+    GatewayPrincipal:
+      type: apiKey
+      in: header
+      name: X-Subject-Id
+      description: Paired with X-Tenant-Id from api-gateway
+  schemas:
+    EvaluatePolicyRequest:
+      type: object
+      required: [action]
+      properties:
+        action:
+          type: string
+          enum:
+            - create_task
+            - invoke_tool
+            - complete_model
+            - embed_model
+            - connect_repo
+            - write_branch
+            - export_memory
+        attributes:
+          type: object
+          additionalProperties: true
+          default: {}
+        policy_version: {type: [string, "null"]}
+        dry_run: {type: boolean, default: false}
+    PolicyDecision:
+      type: object
+      required: [effect, required_approvals, constraints, policy_version, reasons]
+      properties:
+        effect:
+          type: string
+          enum: [allow, deny, approval_required]
+        required_approvals:
+          type: array
+          items: {type: string}
+        constraints:
+          type: object
+          additionalProperties: true
+        policy_version: {type: string}
+        reasons:
+          type: array
+          items: {type: string}
+    PolicyBundle:
+      type: object
+      required: [id, tenant_id, version, bundle_ref, status, checksum, created_at]
+      properties:
+        id: {type: string, format: uuid}
+        tenant_id: {type: string, format: uuid}
+        version: {type: string}
+        bundle_ref: {type: string}
+        status: {type: string, enum: [draft, active, retired]}
+        checksum: {type: string}
+        activated_at: {type: [string, "null"], format: date-time}
+        created_at: {type: string, format: date-time}
+    PolicyBundleList:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items: {$ref: "#/components/schemas/PolicyBundle"}
+    UpsertDraftBundleRequest:
+      type: object
+      required: [version, rules]
+      properties:
+        version: {type: string, minLength: 1, maxLength: 128}
+        rules:
+          type: array
+          minItems: 1
+          items:
+            type: object
+            additionalProperties: true

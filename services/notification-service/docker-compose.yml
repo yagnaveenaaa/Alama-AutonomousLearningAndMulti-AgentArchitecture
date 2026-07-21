@@ -1,0 +1,36 @@
+services:
+  postgres-notification:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: alama
+      POSTGRES_PASSWORD: alama
+      POSTGRES_DB: notification
+    ports:
+      - "5440:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U alama -d notification"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    volumes:
+      - notification_pg:/var/lib/postgresql/data
+
+  notification-service:
+    build:
+      context: ../..
+      dockerfile: services/notification-service/Dockerfile
+    environment:
+      NOTIFICATION_ENVIRONMENT: development
+      NOTIFICATION_CELL_ID: local
+      NOTIFICATION_REGION: local
+      NOTIFICATION_USE_IN_MEMORY_STORE: "true"
+      NOTIFICATION_DATABASE_URL: postgresql+asyncpg://alama:alama@postgres-notification:5432/notification
+      NOTIFICATION_OTEL_ENABLED: "false"
+    ports:
+      - "8111:8111"
+    depends_on:
+      postgres-notification:
+        condition: service_healthy
+
+volumes:
+  notification_pg:

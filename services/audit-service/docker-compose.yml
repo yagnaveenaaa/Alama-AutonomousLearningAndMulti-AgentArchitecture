@@ -1,0 +1,36 @@
+services:
+  postgres-audit:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: alama
+      POSTGRES_PASSWORD: alama
+      POSTGRES_DB: audit
+    ports:
+      - "5438:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U alama -d audit"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    volumes:
+      - audit_pg:/var/lib/postgresql/data
+
+  audit-service:
+    build:
+      context: ../..
+      dockerfile: services/audit-service/Dockerfile
+    environment:
+      AUDIT_ENVIRONMENT: development
+      AUDIT_CELL_ID: local
+      AUDIT_REGION: local
+      AUDIT_USE_IN_MEMORY_STORE: "true"
+      AUDIT_DATABASE_URL: postgresql+asyncpg://alama:alama@postgres-audit:5432/audit
+      AUDIT_OTEL_ENABLED: "false"
+    ports:
+      - "8109:8109"
+    depends_on:
+      postgres-audit:
+        condition: service_healthy
+
+volumes:
+  audit_pg:

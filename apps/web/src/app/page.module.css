@@ -1,0 +1,17 @@
+.dash {
+  display: grid;
+  gap: 2.25rem;
+  margin-top: 2.25rem;
+}
+
+.split {
+  display: grid;
+  grid-template-columns: 1.4fr 1fr;
+  gap: 2rem;
+}
+
+@media (max-width: 860px) {
+  .split {
+    grid-template-columns: 1fr;
+  }
+}

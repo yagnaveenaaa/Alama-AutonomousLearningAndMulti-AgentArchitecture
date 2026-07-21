@@ -1,0 +1,13 @@
+services:
+  bff-web:
+    build:
+      context: ../..
+      dockerfile: services/bff-web/Dockerfile
+    environment:
+      BFF_ENVIRONMENT: development
+      BFF_CELL_ID: local
+      BFF_REGION: local
+      BFF_USE_IN_MEMORY_CLIENTS: "true"
+      BFF_OTEL_ENABLED: "false"
+    ports:
+      - "8081:8081"

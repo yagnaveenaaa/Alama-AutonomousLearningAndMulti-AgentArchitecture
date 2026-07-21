@@ -1,0 +1,131 @@
+openapi: 3.1.0
+info:
+  title: Alama Knowledge Service
+  version: 0.1.0
+  description: |
+    Governed memory items and conversation threads.
+    Bound to LLD §2.8 / §5.5 / §8.
+servers:
+  - url: http://localhost:8106
+    description: Local cell
+paths:
+  /health:
+    get:
+      tags: [ops]
+      summary: Liveness
+      responses:
+        "200":
+          description: Service is healthy
+  /v1/memories:
+    get:
+      tags: [memories]
+      summary: List memory items
+      operationId: listMemories
+      security:
+        - GatewayPrincipal: []
+      responses:
+        "200":
+          description: Memory list
+    post:
+      tags: [memories]
+      summary: Create memory (candidate or promote)
+      operationId: createMemory
+      security:
+        - GatewayPrincipal: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateMemoryRequest"
+      responses:
+        "201":
+          description: Memory created
+        "422":
+          description: Write gate rejected
+  /v1/memories/{memory_id}:
+    patch:
+      tags: [memories]
+      summary: Patch memory metadata or status
+      operationId: patchMemory
+      security:
+        - GatewayPrincipal: []
+      parameters:
+        - name: memory_id
+          in: path
+          required: true
+          schema: {type: string, format: uuid}
+      responses:
+        "200":
+          description: Updated memory
+    delete:
+      tags: [memories]
+      summary: Soft-delete memory
+      operationId: deleteMemory
+      security:
+        - GatewayPrincipal: []
+      parameters:
+        - name: memory_id
+          in: path
+          required: true
+          schema: {type: string, format: uuid}
+      responses:
+        "204":
+          description: Deleted
+  /v1/conversations:
+    get:
+      tags: [conversations]
+      summary: List conversations
+      operationId: listConversations
+      security:
+        - GatewayPrincipal: []
+      responses:
+        "200":
+          description: Conversation list
+    post:
+      tags: [conversations]
+      summary: Create conversation
+      operationId: createConversation
+      security:
+        - GatewayPrincipal: []
+      responses:
+        "201":
+          description: Conversation created
+  /v1/conversations/{conversation_id}/messages:
+    post:
+      tags: [conversations]
+      summary: Post message (may acknowledge task start)
+      operationId: postMessage
+      security:
+        - GatewayPrincipal: []
+      parameters:
+        - name: conversation_id
+          in: path
+          required: true
+          schema: {type: string, format: uuid}
+      responses:
+        "201":
+          description: Message created
+        "202":
+          description: Message created and task start accepted
+components:
+  securitySchemes:
+    GatewayPrincipal:
+      type: apiKey
+      in: header
+      name: X-Subject-Id
+  schemas:
+    CreateMemoryRequest:
+      type: object
+      required: [scope, memory_type, title, content]
+      properties:
+        scope:
+          type: string
+          enum: [user, repo, org, task, reflection]
+        memory_type:
+          type: string
+          enum: [working, org_semantic, user_fact, repo_convention, conversation, reflection]
+        title: {type: string}
+        content: {type: string}
+        confidence: {type: number, minimum: 0, maximum: 1, default: 0.8}
+        promote: {type: boolean, default: false}

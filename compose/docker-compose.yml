@@ -1,0 +1,225 @@
+# Alama local Docker Compose (LLD §11.2)
+#
+# Profiles:
+#   core  — edge + identity + web (minimal UI path)
+#   ai    — adds task/repo/retrieval/model/tool + agent/indexing workers
+#   full  — all services + workers + mailhog
+#
+# From monorepo root:
+#   docker compose -f compose/docker-compose.yml --profile core up --build
+#   docker compose -f compose/docker-compose.yml --profile ai up --build
+#   docker compose -f compose/docker-compose.yml --profile full up --build
+#
+# Default store mode is in-memory for app services (no Postgres required for core).
+
+name: alama
+
+x-otel-off: &otel-off
+  OTEL_ENABLED: "false"
+
+services:
+  # ── infrastructure (full) ───────────────────────────────────────────
+  redis:
+    profiles: [full]
+    image: redis:7-alpine
+    ports: ["6379:6379"]
+
+  mailhog:
+    profiles: [full]
+    image: mailhog/mailhog:v1.0.1
+    ports:
+      - "1025:1025"
+      - "8025:8025"
+
+  # ── core ────────────────────────────────────────────────────────────
+  identity-service:
+    profiles: [core, ai, full]
+    build:
+      context: ..
+      dockerfile: services/identity-service/Dockerfile
+    environment:
+      IDENTITY_ENVIRONMENT: development
+      IDENTITY_CELL_ID: local
+      IDENTITY_REGION: local
+      IDENTITY_USE_IN_MEMORY_STORE: "true"
+      IDENTITY_OTEL_ENABLED: "false"
+    ports: ["8101:8101"]
+
+  api-gateway:
+    profiles: [core, ai, full]
+    build:
+      context: ..
+      dockerfile: services/api-gateway/Dockerfile
+    environment:
+      GATEWAY_ENVIRONMENT: development
+      GATEWAY_CELL_ID: local
+      GATEWAY_REGION: local
+      GATEWAY_USE_ECHO_UPSTREAM: "true"
+      GATEWAY_IDENTITY_UPSTREAM: http://identity-service:8101
+      GATEWAY_OTEL_ENABLED: "false"
+    ports: ["8080:8080"]
+    depends_on: [identity-service]
+
+  bff-web:
+    profiles: [core, ai, full]
+    build:
+      context: ..
+      dockerfile: services/bff-web/Dockerfile
+    environment:
+      BFF_ENVIRONMENT: development
+      BFF_CELL_ID: local
+      BFF_REGION: local
+      BFF_USE_IN_MEMORY_CLIENTS: "true"
+      BFF_API_GATEWAY_URL: http://api-gateway:8080
+      BFF_OTEL_ENABLED: "false"
+    ports: ["8081:8081"]
+    depends_on: [api-gateway]
+
+  alama-web:
+    profiles: [core, ai, full]
+    build:
+      context: ..
+      dockerfile: apps/web/Dockerfile
+    environment:
+      NODE_ENV: production
+    ports: ["3000:3000"]
+    depends_on: [bff-web]
+
+  # ── ai profile ──────────────────────────────────────────────────────
+  repository-service:
+    profiles: [ai, full]
+    build:
+      context: ..
+      dockerfile: services/repository-service/Dockerfile
+    environment:
+      REPOSITORY_ENVIRONMENT: development
+      REPOSITORY_USE_IN_MEMORY_STORE: "true"
+      REPOSITORY_OTEL_ENABLED: "false"
+    ports: ["8102:8102"]
+
+  task-service:
+    profiles: [ai, full]
+    build:
+      context: ..
+      dockerfile: services/task-service/Dockerfile
+    environment:
+      TASK_ENVIRONMENT: development
+      TASK_USE_IN_MEMORY_STORE: "true"
+      TASK_OTEL_ENABLED: "false"
+    ports: ["8103:8103"]
+
+  policy-service:
+    profiles: [ai, full]
+    build:
+      context: ..
+      dockerfile: services/policy-service/Dockerfile
+    environment:
+      POLICY_ENVIRONMENT: development
+      POLICY_USE_IN_MEMORY_STORE: "true"
+      POLICY_OTEL_ENABLED: "false"
+    ports: ["8104:8104"]
+
+  retrieval-service:
+    profiles: [ai, full]
+    build:
+      context: ..
+      dockerfile: services/retrieval-service/Dockerfile
+    environment:
+      RETRIEVAL_ENVIRONMENT: development
+      RETRIEVAL_USE_IN_MEMORY_STORE: "true"
+      RETRIEVAL_OTEL_ENABLED: "false"
+    ports: ["8105:8105"]
+
+  knowledge-service:
+    profiles: [ai, full]
+    build:
+      context: ..
+      dockerfile: services/knowledge-service/Dockerfile
+    environment:
+      KNOWLEDGE_ENVIRONMENT: development
+      KNOWLEDGE_USE_IN_MEMORY_STORE: "true"
+      KNOWLEDGE_OTEL_ENABLED: "false"
+    ports: ["8106:8106"]
+
+  model-gateway:
+    profiles: [ai, full]
+    build:
+      context: ..
+      dockerfile: services/model-gateway/Dockerfile
+    environment:
+      MODEL_GATEWAY_ENVIRONMENT: development
+      MODEL_GATEWAY_OTEL_ENABLED: "false"
+    ports: ["8107:8107"]
+
+  tool-gateway:
+    profiles: [ai, full]
+    build:
+      context: ..
+      dockerfile: services/tool-gateway/Dockerfile
+    environment:
+      TOOL_GATEWAY_ENVIRONMENT: development
+      TOOL_GATEWAY_OTEL_ENABLED: "false"
+    ports: ["8108:8108"]
+
+  indexing-worker:
+    profiles: [ai, full]
+    build:
+      context: ..
+      dockerfile: workers/indexing-worker/Dockerfile
+    environment:
+      INDEXING_WORKER_ENVIRONMENT: development
+      INDEXING_WORKER_USE_IN_MEMORY_STORE: "true"
+      INDEXING_WORKER_OTEL_ENABLED: "false"
+
+  agent-worker:
+    profiles: [ai, full]
+    build:
+      context: ..
+      dockerfile: workers/agent-worker/Dockerfile
+    environment:
+      AGENT_WORKER_ENVIRONMENT: development
+      AGENT_WORKER_OTEL_ENABLED: "false"
+
+  # ── full profile extras ─────────────────────────────────────────────
+  audit-service:
+    profiles: [full]
+    build:
+      context: ..
+      dockerfile: services/audit-service/Dockerfile
+    environment:
+      AUDIT_ENVIRONMENT: development
+      AUDIT_USE_IN_MEMORY_STORE: "true"
+      AUDIT_OTEL_ENABLED: "false"
+    ports: ["8109:8109"]
+
+  usage-service:
+    profiles: [full]
+    build:
+      context: ..
+      dockerfile: services/usage-service/Dockerfile
+    environment:
+      USAGE_ENVIRONMENT: development
+      USAGE_USE_IN_MEMORY_STORE: "true"
+      USAGE_OTEL_ENABLED: "false"
+    ports: ["8110:8110"]
+
+  notification-service:
+    profiles: [full]
+    build:
+      context: ..
+      dockerfile: services/notification-service/Dockerfile
+    environment:
+      NOTIFICATION_ENVIRONMENT: development
+      NOTIFICATION_USE_IN_MEMORY_STORE: "true"
+      NOTIFICATION_OTEL_ENABLED: "false"
+    ports: ["8111:8111"]
+
+  evaluator-worker:
+    profiles: [full]
+    build:
+      context: ..
+      dockerfile: workers/evaluator-worker/Dockerfile
+    environment:
+      EVALUATOR_WORKER_ENVIRONMENT: development
+      EVALUATOR_WORKER_USE_IN_MEMORY_STORE: "true"
+      EVALUATOR_WORKER_OTEL_ENABLED: "false"

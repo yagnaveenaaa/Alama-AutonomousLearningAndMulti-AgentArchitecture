@@ -1,0 +1,120 @@
+openapi: 3.1.0
+info:
+  title: Alama Task Service
+  version: 0.1.0
+paths:
+  /health:
+    get:
+      operationId: health
+      responses:
+        "200": {description: Healthy}
+  /v1/tasks:
+    post:
+      operationId: createTask
+      parameters:
+        - name: X-Subject-Id
+          in: header
+          required: true
+          schema: {type: string, format: uuid}
+        - name: X-Tenant-Id
+          in: header
+          required: true
+          schema: {type: string, format: uuid}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: "#/components/schemas/CreateTaskRequest"}
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/Task"}
+        "429": {description: Budget exceeded}
+    get:
+      operationId: listTasks
+      parameters:
+        - name: X-Subject-Id
+          in: header
+          required: true
+          schema: {type: string, format: uuid}
+        - name: X-Tenant-Id
+          in: header
+          required: true
+          schema: {type: string, format: uuid}
+      responses:
+        "200": {description: Task page}
+  /v1/tasks/{task_id}/cancel:
+    post:
+      operationId: cancelTask
+      parameters:
+        - name: X-Subject-Id
+          in: header
+          required: true
+          schema: {type: string, format: uuid}
+        - name: X-Tenant-Id
+          in: header
+          required: true
+          schema: {type: string, format: uuid}
+        - name: task_id
+          in: path
+          required: true
+          schema: {type: string, format: uuid}
+      responses:
+        "200": {description: Cancelled}
+  /v1/approvals/{approval_id}/decide:
+    post:
+      operationId: decideApproval
+      parameters:
+        - name: X-Subject-Id
+          in: header
+          required: true
+          schema: {type: string, format: uuid}
+        - name: X-Tenant-Id
+          in: header
+          required: true
+          schema: {type: string, format: uuid}
+        - name: approval_id
+          in: path
+          required: true
+          schema: {type: string, format: uuid}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: "#/components/schemas/DecideApprovalRequest"}
+      responses:
+        "200": {description: Decision recorded}
+components:
+  schemas:
+    CreateTaskRequest:
+      type: object
+      required: [repository_id, objective]
+      properties:
+        repository_id: {type: string, format: uuid}
+        objective: {type: string}
+        title: {type: [string, "null"]}
+        budget_tokens: {type: [integer, "null"]}
+        budget_usd_micros: {type: [integer, "null"]}
+        base_commit_sha: {type: [string, "null"]}
+        priority: {type: integer, default: 0}
+    DecideApprovalRequest:
+      type: object
+      required: [decision]
+      properties:
+        decision: {type: string}
+        reason: {type: [string, "null"]}
+    Task:
+      type: object
+      required: [id, state, repository_id, workflow_id, created_at]
+      properties:
+        id: {type: string, format: uuid}
+        state: {type: string}
+        repository_id: {type: string, format: uuid}
+        workflow_id: {type: string}
+        created_at: {type: string, format: date-time}
+        links:
+          type: object
+          properties:
+            events_stream: {type: string}

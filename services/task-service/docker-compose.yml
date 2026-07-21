@@ -1,0 +1,36 @@
+services:
+  postgres-task:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: alama
+      POSTGRES_PASSWORD: alama
+      POSTGRES_DB: task
+    ports:
+      - "5435:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U alama -d task"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    volumes:
+      - task_pg:/var/lib/postgresql/data
+
+  task-service:
+    build:
+      context: ../..
+      dockerfile: services/task-service/Dockerfile
+    environment:
+      TASK_ENVIRONMENT: development
+      TASK_CELL_ID: local
+      TASK_REGION: local
+      TASK_USE_IN_MEMORY_STORE: "true"
+      TASK_DATABASE_URL: postgresql+asyncpg://alama:alama@postgres-task:5432/task
+      TASK_OTEL_ENABLED: "false"
+    ports:
+      - "8103:8103"
+    depends_on:
+      postgres-task:
+        condition: service_healthy
+
+volumes:
+  task_pg:

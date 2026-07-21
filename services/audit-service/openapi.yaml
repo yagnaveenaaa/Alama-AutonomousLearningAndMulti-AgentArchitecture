@@ -1,0 +1,118 @@
+openapi: 3.1.0
+info:
+  title: Alama Audit Service
+  version: 0.1.0
+  description: |
+    Append-only audit events with integrity chain.
+    Bound to LLD §2.11 / §5.6.
+servers:
+  - url: http://localhost:8109
+paths:
+  /health:
+    get:
+      tags: [ops]
+      responses:
+        "200": {description: Healthy}
+  /v1/audit/events:
+    get:
+      tags: [audit]
+      summary: List audit events
+      operationId: listAuditEvents
+      security:
+        - GatewayPrincipal: []
+      parameters:
+        - name: action
+          in: query
+          schema: {type: string}
+        - name: actor_id
+          in: query
+          schema: {type: string}
+        - name: resource_type
+          in: query
+          schema: {type: string}
+        - name: cursor
+          in: query
+          schema: {type: string}
+        - name: limit
+          in: query
+          schema: {type: integer, default: 50}
+      responses:
+        "200":
+          description: Event list
+    post:
+      tags: [audit]
+      summary: Ingest audit event
+      operationId: ingestAuditEvent
+      security:
+        - GatewayPrincipal: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/IngestAuditRequest"
+      responses:
+        "201":
+          description: Created
+  /v1/audit/integrity:
+    get:
+      tags: [audit]
+      summary: Verify tenant hash chain
+      operationId: verifyAuditIntegrity
+      security:
+        - GatewayPrincipal: []
+      responses:
+        "200":
+          description: Integrity result
+  /v1/audit/exports:
+    post:
+      tags: [audit]
+      summary: Export audit package
+      operationId: exportAuditEvents
+      security:
+        - GatewayPrincipal: []
+      responses:
+        "201":
+          description: Export created
+  /v1/audit/legal-hold:
+    post:
+      tags: [audit]
+      summary: Activate legal hold
+      operationId: activateLegalHold
+      security:
+        - GatewayPrincipal: []
+      responses:
+        "200":
+          description: Hold active
+    delete:
+      tags: [audit]
+      summary: Release legal hold
+      operationId: releaseLegalHold
+      security:
+        - GatewayPrincipal: []
+      responses:
+        "200":
+          description: Hold released
+components:
+  securitySchemes:
+    GatewayPrincipal:
+      type: apiKey
+      in: header
+      name: X-Subject-Id
+  schemas:
+    IngestAuditRequest:
+      type: object
+      required: [actor_id, action, resource_type, resource_id]
+      properties:
+        actor_type:
+          type: string
+          enum: [user, agent, system, service]
+        actor_id: {type: string}
+        action: {type: string}
+        resource_type: {type: string}
+        resource_id: {type: string}
+        decision:
+          type: string
+          enum: [allow, deny, approval_required, recorded, error]
+        policy_version: {type: [string, "null"]}
+        payload: {type: object}

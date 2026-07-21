@@ -1,0 +1,11 @@
+services:
+  agent-worker:
+    build:
+      context: ../..
+      dockerfile: workers/agent-worker/Dockerfile
+    environment:
+      AGENT_WORKER_ENVIRONMENT: development
+      AGENT_WORKER_CELL_ID: local
+      AGENT_WORKER_REGION: local
+      AGENT_WORKER_TASK_QUEUE: agent-general
+      AGENT_WORKER_OTEL_ENABLED: "false"

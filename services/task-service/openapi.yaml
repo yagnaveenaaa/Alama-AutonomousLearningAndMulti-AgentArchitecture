@@ -1,0 +1,213 @@
+openapi: 3.1.0
+info:
+  title: Alama Task Service
+  version: 0.1.0
+  description: Task CRUD, approvals, events, and workflow signals (LLD §5.4).
+paths:
+  /health:
+    get:
+      operationId: health
+      responses:
+        "200":
+          description: Healthy
+  /v1/tasks:
+    post:
+      operationId: createTask
+      parameters:
+        - $ref: "#/components/parameters/XSubjectId"
+        - $ref: "#/components/parameters/XTenantId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateTaskRequest"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Task"
+        "403":
+          description: Policy deny
+        "429":
+          description: Budget exceeded
+    get:
+      operationId: listTasks
+      parameters:
+        - $ref: "#/components/parameters/XSubjectId"
+        - $ref: "#/components/parameters/XTenantId"
+        - name: repository_id
+          in: query
+          schema: {type: string, format: uuid}
+        - name: state
+          in: query
+          schema: {type: string}
+        - name: cursor
+          in: query
+          schema: {type: string}
+        - name: limit
+          in: query
+          schema: {type: integer, default: 25, minimum: 1, maximum: 100}
+      responses:
+        "200":
+          description: Task page
+  /v1/tasks/{task_id}:
+    get:
+      operationId: getTask
+      parameters:
+        - $ref: "#/components/parameters/XSubjectId"
+        - $ref: "#/components/parameters/XTenantId"
+        - $ref: "#/components/parameters/TaskId"
+      responses:
+        "200":
+          description: Task
+        "404":
+          description: Not found
+  /v1/tasks/{task_id}/cancel:
+    post:
+      operationId: cancelTask
+      parameters:
+        - $ref: "#/components/parameters/XSubjectId"
+        - $ref: "#/components/parameters/XTenantId"
+        - $ref: "#/components/parameters/TaskId"
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                reason: {type: [string, "null"]}
+      responses:
+        "200":
+          description: Cancelled
+        "409":
+          description: Conflict
+  /v1/tasks/{task_id}/pause:
+    post:
+      operationId: pauseTask
+      parameters:
+        - $ref: "#/components/parameters/XSubjectId"
+        - $ref: "#/components/parameters/XTenantId"
+        - $ref: "#/components/parameters/TaskId"
+      responses:
+        "200":
+          description: Paused
+        "409":
+          description: Conflict
+  /v1/tasks/{task_id}/resume:
+    post:
+      operationId: resumeTask
+      parameters:
+        - $ref: "#/components/parameters/XSubjectId"
+        - $ref: "#/components/parameters/XTenantId"
+        - $ref: "#/components/parameters/TaskId"
+      responses:
+        "200":
+          description: Resumed
+        "409":
+          description: Conflict
+  /v1/tasks/{task_id}/events:
+    get:
+      operationId: listTaskEvents
+      parameters:
+        - $ref: "#/components/parameters/XSubjectId"
+        - $ref: "#/components/parameters/XTenantId"
+        - $ref: "#/components/parameters/TaskId"
+        - name: from_seq
+          in: query
+          schema: {type: integer, minimum: 1}
+      responses:
+        "200":
+          description: Events
+  /v1/tasks/{task_id}/events/stream:
+    get:
+      operationId: streamTaskEvents
+      parameters:
+        - $ref: "#/components/parameters/XSubjectId"
+        - $ref: "#/components/parameters/XTenantId"
+        - $ref: "#/components/parameters/TaskId"
+      responses:
+        "200":
+          description: SSE event stream
+  /v1/tasks/{task_id}/approvals:
+    get:
+      operationId: listTaskApprovals
+      parameters:
+        - $ref: "#/components/parameters/XSubjectId"
+        - $ref: "#/components/parameters/XTenantId"
+        - $ref: "#/components/parameters/TaskId"
+      responses:
+        "200":
+          description: Approvals
+  /v1/approvals/{approval_id}/decide:
+    post:
+      operationId: decideApproval
+      parameters:
+        - $ref: "#/components/parameters/XSubjectId"
+        - $ref: "#/components/parameters/XTenantId"
+        - name: approval_id
+          in: path
+          required: true
+          schema: {type: string, format: uuid}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DecideApprovalRequest"
+      responses:
+        "200":
+          description: Decision recorded
+        "409":
+          description: Already decided
+components:
+  parameters:
+    XSubjectId:
+      name: X-Subject-Id
+      in: header
+      required: true
+      schema: {type: string, format: uuid}
+    XTenantId:
+      name: X-Tenant-Id
+      in: header
+      required: true
+      schema: {type: string, format: uuid}
+    TaskId:
+      name: task_id
+      in: path
+      required: true
+      schema: {type: string, format: uuid}
+  schemas:
+    CreateTaskRequest:
+      type: object
+      required: [repository_id, objective]
+      properties:
+        repository_id: {type: string, format: uuid}
+        objective: {type: string, minLength: 1}
+        title: {type: [string, "null"]}
+        budget_tokens: {type: [integer, "null"]}
+        budget_usd_micros: {type: [integer, "null"]}
+        base_ref: {type: [string, "null"]}
+        base_commit_sha: {type: [string, "null"], minLength: 40, maxLength: 40}
+        priority: {type: integer, default: 0}
+    DecideApprovalRequest:
+      type: object
+      required: [decision]
+      properties:
+        decision: {type: string}
+        reason: {type: [string, "null"]}
+    Task:
+      type: object
+      required: [id, state, repository_id, workflow_id, created_at]
+      properties:
+        id: {type: string, format: uuid}
+        state: {type: string}
+        repository_id: {type: string, format: uuid}
+        workflow_id: {type: string}
+        created_at: {type: string, format: date-time}
+        links:
+          type: object
+          properties:
+            events_stream: {type: string}

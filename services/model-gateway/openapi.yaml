@@ -1,0 +1,114 @@
+openapi: 3.1.0
+info:
+  title: Alama Model Gateway
+  version: 0.1.0
+  description: Internal ModelGateway.Complete / Embed / Rerank (LLD §5.7).
+paths:
+  /health:
+    get:
+      operationId: health
+      responses:
+        "200":
+          description: Healthy
+  /v1/complete:
+    post:
+      operationId: complete
+      parameters:
+        - name: X-Tenant-Id
+          in: header
+          required: true
+          schema: {type: string, format: uuid}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: "#/components/schemas/CompleteRequest"}
+      responses:
+        "200":
+          description: Completion
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/CompleteResponse"}
+        "429":
+          description: Quota exceeded
+  /v1/embed:
+    post:
+      operationId: embed
+      parameters:
+        - name: X-Tenant-Id
+          in: header
+          required: true
+          schema: {type: string, format: uuid}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: "#/components/schemas/EmbedRequest"}
+      responses:
+        "200":
+          description: Embeddings
+  /v1/rerank:
+    post:
+      operationId: rerank
+      parameters:
+        - name: X-Tenant-Id
+          in: header
+          required: true
+          schema: {type: string, format: uuid}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: "#/components/schemas/RerankRequest"}
+      responses:
+        "200":
+          description: Reranked documents
+components:
+  schemas:
+    CompleteRequest:
+      type: object
+      required: [purpose]
+      properties:
+        purpose: {type: string}
+        task_id: {type: [string, "null"], format: uuid}
+        preferred_tier: {type: string, default: strong}
+        residency: {type: string, default: any}
+        messages:
+          type: array
+          items:
+            type: object
+            required: [role, content]
+            properties:
+              role: {type: string}
+              content: {type: string}
+        template_name: {type: [string, "null"]}
+        template_version: {type: [string, "null"]}
+        template_inputs: {type: object, additionalProperties: true}
+        json_schema_name: {type: [string, "null"]}
+        max_tokens: {type: integer, default: 2048}
+    CompleteResponse:
+      type: object
+      required: [request_id, model, provider, content, input_tokens, output_tokens, fallback_used]
+      properties:
+        request_id: {type: string, format: uuid}
+        model: {type: string}
+        provider: {type: string}
+        content: {type: string}
+        parsed_json: {type: [object, "null"]}
+        input_tokens: {type: integer}
+        output_tokens: {type: integer}
+        fallback_used: {type: boolean}
+    EmbedRequest:
+      type: object
+      required: [purpose, texts]
+      properties:
+        purpose: {type: string}
+        texts: {type: array, items: {type: string}, minItems: 1}
+        residency: {type: string, default: any}
+    RerankRequest:
+      type: object
+      required: [purpose, query, documents]
+      properties:
+        purpose: {type: string}
+        query: {type: string}
+        documents: {type: array, items: {type: string}, minItems: 1}

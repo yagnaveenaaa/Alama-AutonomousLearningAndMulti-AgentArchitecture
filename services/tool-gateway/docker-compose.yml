@@ -1,0 +1,11 @@
+services:
+  tool-gateway:
+    build:
+      context: ../..
+      dockerfile: services/tool-gateway/Dockerfile
+    ports:
+      - "8108:8108"
+    environment:
+      TOOL_GATEWAY_ENVIRONMENT: development
+      TOOL_GATEWAY_OTEL_ENABLED: "false"
+      TOOL_GATEWAY_CAPABILITY_TTL_SECONDS: "300"

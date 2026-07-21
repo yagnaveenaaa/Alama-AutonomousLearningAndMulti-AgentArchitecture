@@ -1,0 +1,99 @@
+openapi: 3.1.0
+info:
+  title: Alama API Gateway
+  version: 0.1.0
+  description: |
+    Edge JWT validation, tenant routing, rate limits, reverse proxy.
+    Bound to LLD §2.1 / §13.2.
+servers:
+  - url: http://localhost:8080
+    description: Local edge
+paths:
+  /health:
+    get:
+      tags: [ops]
+      summary: Liveness
+      responses:
+        "200":
+          description: Healthy
+  /ready:
+    get:
+      tags: [ops]
+      summary: Readiness
+      responses:
+        "200":
+          description: Ready
+  /v1/gateway/dev/mint-token:
+    post:
+      tags: [dev]
+      summary: Mint local HS256 access token (dev only)
+      operationId: mintDevToken
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MintTokenRequest"
+      responses:
+        "200":
+          description: Token minted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MintTokenResponse"
+  /v1/{path}:
+    get:
+      tags: [proxy]
+      summary: Authenticated reverse proxy (GET)
+      parameters:
+        - name: path
+          in: path
+          required: true
+          schema: {type: string}
+        - name: Authorization
+          in: header
+          required: false
+          schema: {type: string}
+      responses:
+        "200":
+          description: Upstream response
+        "401":
+          description: Unauthenticated
+        "404":
+          description: No route
+        "429":
+          description: Rate limited
+    post:
+      tags: [proxy]
+      summary: Authenticated reverse proxy (POST)
+      parameters:
+        - name: path
+          in: path
+          required: true
+          schema: {type: string}
+      responses:
+        "200":
+          description: Upstream response
+        "401":
+          description: Unauthenticated
+components:
+  schemas:
+    MintTokenRequest:
+      type: object
+      required: [subject_id, tenant_ids]
+      properties:
+        subject_id: {type: string, format: uuid}
+        tenant_ids:
+          type: array
+          items: {type: string, format: uuid}
+          minItems: 1
+        scopes:
+          type: array
+          items: {type: string}
+    MintTokenResponse:
+      type: object
+      required: [access_token, token_type]
+      properties:
+        access_token: {type: string}
+        token_type: {type: string}
+        session_cookie: {type: [string, "null"]}

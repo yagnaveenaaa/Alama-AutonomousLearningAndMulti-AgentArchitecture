@@ -1,0 +1,11 @@
+{
+  "suite_version": "v1",
+  "cases": [
+    {
+      "case_id": "a1",
+      "objective": "Add hello method",
+      "expected_success": true,
+      "observed_success": true
+    }
+  ]
+}

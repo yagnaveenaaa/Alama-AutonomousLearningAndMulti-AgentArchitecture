@@ -1,0 +1,32 @@
+openapi: 3.1.0
+info:
+  title: Alama Usage Service
+  version: 0.1.0
+  description: Usage ledger, budgets, showback (LLD §2.12 / §5.6).
+servers:
+  - url: http://localhost:8110
+paths:
+  /health:
+    get:
+      tags: [ops]
+      responses:
+        "200": {description: Healthy}
+  /v1/usage/summary:
+    get:
+      tags: [usage]
+      summary: Period aggregates
+      responses:
+        "200": {description: Summary}
+  /v1/usage/budgets:
+    get:
+      tags: [usage]
+      summary: List budgets
+      responses:
+        "200": {description: Budgets}
+  /v1/usage/events:
+    post:
+      tags: [usage]
+      summary: Ingest usage event
+      responses:
+        "201": {description: Created}
+        "429": {description: Budget exceeded}

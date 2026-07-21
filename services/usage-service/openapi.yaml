@@ -1,0 +1,77 @@
+openapi: 3.1.0
+info:
+  title: Alama Usage Service
+  version: 0.1.0
+  description: |
+    Usage ledger, budgets, showback, anomaly flags.
+    Bound to LLD §2.12 / §5.6.
+servers:
+  - url: http://localhost:8110
+paths:
+  /health:
+    get:
+      tags: [ops]
+      responses:
+        "200": {description: Healthy}
+  /v1/usage/events:
+    post:
+      tags: [usage]
+      summary: Ingest usage event (idempotent)
+      operationId: ingestUsageEvent
+      security:
+        - GatewayPrincipal: []
+      responses:
+        "201": {description: Created}
+        "200": {description: Idempotent replay}
+        "429": {description: Budget exceeded}
+  /v1/usage/summary:
+    get:
+      tags: [usage]
+      summary: Period aggregates
+      operationId: getUsageSummary
+      security:
+        - GatewayPrincipal: []
+      responses:
+        "200": {description: Summary}
+  /v1/usage/budgets:
+    get:
+      tags: [usage]
+      summary: List budgets
+      operationId: listBudgets
+      security:
+        - GatewayPrincipal: []
+      responses:
+        "200": {description: Budgets}
+    put:
+      tags: [usage]
+      summary: Upsert budget limits
+      operationId: upsertBudget
+      security:
+        - GatewayPrincipal: []
+      responses:
+        "200": {description: Budget}
+  /v1/usage/budgets/reserve:
+    post:
+      tags: [usage]
+      summary: Reserve budget
+      operationId: reserveBudget
+      security:
+        - GatewayPrincipal: []
+      responses:
+        "200": {description: Budget}
+        "429": {description: Hard stop}
+  /v1/usage/budgets/commit:
+    post:
+      tags: [usage]
+      summary: Commit reserved budget
+      operationId: commitBudget
+      security:
+        - GatewayPrincipal: []
+      responses:
+        "200": {description: Budget}
+components:
+  securitySchemes:
+    GatewayPrincipal:
+      type: apiKey
+      in: header
+      name: X-Subject-Id

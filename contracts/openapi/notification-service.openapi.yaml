@@ -1,0 +1,31 @@
+openapi: 3.1.0
+info:
+  title: Alama Notification Service
+  version: 0.1.0
+  description: Async multi-channel delivery (LLD §2.13).
+servers:
+  - url: http://localhost:8111
+paths:
+  /health:
+    get:
+      tags: [ops]
+      responses:
+        "200": {description: Healthy}
+  /v1/notifications:
+    post:
+      tags: [notifications]
+      summary: Dispatch notification
+      responses:
+        "202": {description: Accepted}
+        "200": {description: Idempotent replay}
+    get:
+      tags: [notifications]
+      summary: List inbox
+      responses:
+        "200": {description: Page}
+  /v1/notifications/preferences:
+    get:
+      tags: [preferences]
+      summary: List preferences
+      responses:
+        "200": {description: Preferences}

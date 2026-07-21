@@ -1,0 +1,49 @@
+openapi: 3.1.0
+info:
+  title: Alama API Gateway
+  version: 0.1.0
+  description: |
+    Edge JWT validation, tenant routing, rate limits, reverse proxy.
+    Bound to LLD §2.1 / §13.2.
+servers:
+  - url: http://localhost:8080
+    description: Local edge
+paths:
+  /health:
+    get:
+      tags: [ops]
+      summary: Liveness
+      responses:
+        "200":
+          description: Healthy
+  /ready:
+    get:
+      tags: [ops]
+      summary: Readiness
+      responses:
+        "200":
+          description: Ready
+  /v1/gateway/dev/mint-token:
+    post:
+      tags: [dev]
+      summary: Mint local HS256 access token (dev only)
+      operationId: mintDevToken
+      responses:
+        "200":
+          description: Token minted
+  /v1/{path}:
+    get:
+      tags: [proxy]
+      summary: Authenticated reverse proxy
+      parameters:
+        - name: path
+          in: path
+          required: true
+          schema: {type: string}
+      responses:
+        "200":
+          description: Upstream response
+        "401":
+          description: Unauthenticated
+        "429":
+          description: Rate limited

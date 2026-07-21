@@ -1,0 +1,33 @@
+services:
+  postgres-eval:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: alama
+      POSTGRES_PASSWORD: alama
+      POSTGRES_DB: eval
+    ports:
+      - "5441:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U alama -d eval"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    volumes:
+      - eval_pg:/var/lib/postgresql/data
+
+  evaluator-worker:
+    build:
+      context: ../..
+      dockerfile: workers/evaluator-worker/Dockerfile
+    environment:
+      EVALUATOR_WORKER_SERVICE_NAME: evaluator-worker
+      EVALUATOR_WORKER_ENVIRONMENT: development
+      EVALUATOR_WORKER_DATABASE_URL: postgresql+asyncpg://alama:alama@postgres-eval:5432/eval
+      EVALUATOR_WORKER_USE_IN_MEMORY_STORE: "true"
+      EVALUATOR_WORKER_OTEL_ENABLED: "false"
+    depends_on:
+      postgres-eval:
+        condition: service_healthy
+
+volumes:
+  eval_pg:

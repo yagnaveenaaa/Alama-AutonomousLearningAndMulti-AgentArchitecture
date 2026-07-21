@@ -1,0 +1,19 @@
+services:
+  retrieval-service:
+    build:
+      context: ../..
+      dockerfile: services/retrieval-service/Dockerfile
+    ports:
+      - "8105:8105"
+    environment:
+      RETRIEVAL_ENVIRONMENT: development
+      RETRIEVAL_OTEL_ENABLED: "false"
+      RETRIEVAL_DATABASE_URL: postgresql+asyncpg://alama:alama@postgres-index-meta:5432/alama_index_meta
+      RETRIEVAL_USE_IN_MEMORY_STORE: "false"
+    networks:
+      - alama
+
+networks:
+  alama:
+    name: alama
+    external: true

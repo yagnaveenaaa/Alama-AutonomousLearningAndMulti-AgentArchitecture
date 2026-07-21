@@ -1,0 +1,89 @@
+type Task {
+  id: UUID!
+  title: String!
+  objective: String!
+  state: String!
+  repositoryId: UUID!
+  repositoryName: String!
+  createdAt: DateTime!
+  paused: Boolean!
+}
+
+type TaskEvent {
+  id: UUID!
+  sequence: Int!
+  eventType: String!
+  actorType: String!
+  summary: String!
+  createdAt: DateTime!
+}
+
+type Approval {
+  id: UUID!
+  gate: String!
+  status: String!
+  reason: String
+}
+
+type Repository {
+  id: UUID!
+  fullName: String!
+  indexState: String!
+  lastSyncedAt: DateTime!
+}
+
+type Memory {
+  id: UUID!
+  title: String!
+  scope: String!
+  memoryType: String!
+  status: String!
+  confidence: Float!
+  createdAt: DateTime!
+}
+
+type Usage {
+  tokensUsed: Int!
+  tokensBudget: Int!
+  usdMicrosUsed: Int!
+  usdMicrosBudget: Int!
+}
+
+type ChatMessage {
+  id: UUID!
+  role: String!
+  content: String!
+  createdAt: DateTime!
+  taskId: UUID
+}
+
+type StreamHandshake {
+  conversationId: UUID!
+  streamUrl: String!
+  taskId: UUID
+}
+
+type SendChatPayload {
+  messages: [ChatMessage!]!
+  handshake: StreamHandshake!
+  task: Task
+}
+
+type Query {
+  tasks: [Task!]!
+  task(id: UUID!): Task
+  taskEvents(taskId: UUID!): [TaskEvent!]!
+  taskApprovals(taskId: UUID!): [Approval!]!
+  repositories: [Repository!]!
+  chatMessages(conversationId: UUID): [ChatMessage!]!
+  memories: [Memory!]!
+  usage: Usage!
+}
+
+type Mutation {
+  decideApproval(taskId: UUID!, approvalId: UUID!, decision: String!): Approval!
+  sendChat(content: String!, conversationId: UUID, repositoryId: UUID): SendChatPayload!
+}
+
+scalar DateTime
+scalar UUID

@@ -1,0 +1,14 @@
+# Local profile for api-gateway only (LLD §11.2 compose profile subset).
+services:
+  api-gateway:
+    build:
+      context: ../..
+      dockerfile: services/api-gateway/Dockerfile
+    environment:
+      GATEWAY_ENVIRONMENT: development
+      GATEWAY_CELL_ID: local
+      GATEWAY_REGION: local
+      GATEWAY_USE_ECHO_UPSTREAM: "true"
+      GATEWAY_OTEL_ENABLED: "false"
+    ports:
+      - "8080:8080"

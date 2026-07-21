@@ -1,0 +1,53 @@
+openapi: 3.1.0
+info:
+  title: Alama Web BFF
+  version: 0.1.0
+  description: |
+    GraphQL composition for the web UI (LLD §2.2).
+    Primary API is POST /graphql; this OpenAPI covers ops endpoints only.
+servers:
+  - url: http://localhost:8081
+paths:
+  /health:
+    get:
+      tags: [ops]
+      summary: Liveness
+      responses:
+        "200":
+          description: Healthy
+  /schema.graphql:
+    get:
+      tags: [ops]
+      summary: Export GraphQL SDL
+      responses:
+        "200":
+          description: SDL text
+  /graphql:
+    post:
+      tags: [graphql]
+      summary: GraphQL endpoint
+      parameters:
+        - name: X-Subject-Id
+          in: header
+          required: true
+          schema: {type: string, format: uuid}
+        - name: X-Tenant-Id
+          in: header
+          required: true
+          schema: {type: string, format: uuid}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [query]
+              properties:
+                query: {type: string}
+                variables: {type: object}
+                operationName: {type: [string, "null"]}
+      responses:
+        "200":
+          description: GraphQL response
+        "401":
+          description: Missing identity headers

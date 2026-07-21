@@ -1,0 +1,11 @@
+services:
+  model-gateway:
+    build:
+      context: ../..
+      dockerfile: services/model-gateway/Dockerfile
+    ports:
+      - "8107:8107"
+    environment:
+      MODEL_GATEWAY_ENVIRONMENT: development
+      MODEL_GATEWAY_OTEL_ENABLED: "false"
+      MODEL_GATEWAY_TENANT_TOKEN_QUOTA: "1000000"

@@ -1,0 +1,84 @@
+openapi: 3.1.0
+info:
+  title: Alama Retrieval Service
+  version: 0.1.0
+  description: Commit-consistent hybrid repository retrieval.
+paths:
+  /health:
+    get:
+      operationId: health
+      responses:
+        "200":
+          description: Healthy
+  /v1/retrieve:
+    post:
+      operationId: retrieve
+      parameters:
+        - name: X-Tenant-Id
+          in: header
+          required: true
+          schema: {type: string, format: uuid}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RetrieveRequest"
+      responses:
+        "200":
+          description: Retrieval evidence pack
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RetrievalPack"
+        "412":
+          description: Requested commit is not indexed
+components:
+  schemas:
+    RetrieveRequest:
+      type: object
+      required: [repository_id, commit_sha, query]
+      properties:
+        repository_id: {type: string, format: uuid}
+        commit_sha: {type: string, minLength: 40, maxLength: 40}
+        query: {type: string, minLength: 1, maxLength: 20000}
+        acl_labels: {type: array, items: {type: string}, default: []}
+        token_budget: {type: integer, minimum: 100, maximum: 100000, default: 6000}
+        allow_ancestor_fallback: {type: boolean, default: false}
+    Citation:
+      type: object
+      required: [evidence_id, path, start, end, commit, sha]
+      properties:
+        evidence_id: {type: string, format: uuid}
+        path: {type: string}
+        start: {type: integer}
+        end: {type: integer}
+        commit: {type: string}
+        sha: {type: string}
+    EvidenceItem:
+      type: object
+      required: [id, path, start_line, end_line, commit_sha, content_sha, content, score, trust_label]
+      properties:
+        id: {type: string, format: uuid}
+        path: {type: string}
+        start_line: {type: integer}
+        end_line: {type: integer}
+        commit_sha: {type: string}
+        content_sha: {type: string}
+        content: {type: string}
+        score: {type: number}
+        trust_label: {type: string}
+        symbol: {type: [string, "null"]}
+        language: {type: [string, "null"]}
+    RetrievalPack:
+      type: object
+      required: [repository_id, requested_commit_sha, indexed_commit_sha, generation_id, stale, evidence, citations, estimated_tokens]
+      properties:
+        repository_id: {type: string, format: uuid}
+        requested_commit_sha: {type: string}
+        indexed_commit_sha: {type: string}
+        generation_id: {type: string, format: uuid}
+        stale: {type: boolean}
+        evidence: {type: array, items: {$ref: "#/components/schemas/EvidenceItem"}}
+        citations: {type: array, items: {$ref: "#/components/schemas/Citation"}}
+        estimated_tokens: {type: integer}

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from pathlib import Path
 from uuid import UUID
 
 from alama_common.auth import Principal
@@ -30,6 +31,9 @@ class BffContainer:
         tenant_id: str | None,
         authorization: str | None,
     ) -> AuthContext:
+        if self.settings.enable_vertical_slice:
+            subject_id = subject_id or self.settings.slice_subject_id
+            tenant_id = tenant_id or self.settings.slice_tenant_id
         if subject_id is None or tenant_id is None:
             raise AuthenticationError("Missing identity headers")
         try:
@@ -55,6 +59,28 @@ class BffContainer:
 
 def build_container(settings: BffSettings | None = None) -> BffContainer:
     settings = settings or BffSettings()
+    if settings.enable_vertical_slice:
+        from alama_slice.orchestrator import VerticalSliceOrchestrator
+        from bff_web.clients.slice_clients import (
+            SliceKnowledgeClient,
+            SliceRepositoryClient,
+            SliceTaskClient,
+            SliceUsageClient,
+        )
+
+        fixture = Path(settings.fixture_dir) if settings.fixture_dir else None
+        orch = VerticalSliceOrchestrator(fixture_dir=fixture)
+        tasks = SliceTaskClient(orch)
+        clients = ServiceClients(
+            tasks=tasks,
+            repositories=SliceRepositoryClient(orch.store),
+            knowledge=SliceKnowledgeClient(
+                orch, tasks, stream_base_url=settings.stream_base_url
+            ),
+            usage=SliceUsageClient(),
+        )
+        return BffContainer(settings, clients)
+
     tasks = InMemoryTaskClient()
     clients = ServiceClients(
         tasks=tasks,

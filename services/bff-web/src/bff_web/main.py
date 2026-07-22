@@ -9,6 +9,7 @@ from alama_common.http import register_exception_handlers
 from alama_common.logging import configure_logging
 from alama_common.otel import configure_opentelemetry, shutdown_opentelemetry
 from fastapi import FastAPI, Request
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, PlainTextResponse
 from strawberry.fastapi import GraphQLRouter
 
@@ -66,10 +67,23 @@ def create_app(settings: BffSettings | None = None) -> FastAPI:
         openapi_url="/openapi.json",
     )
     register_exception_handlers(app)
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=["http://localhost:3000", "http://127.0.0.1:3000"],
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
 
     @app.get("/health", tags=["ops"])
     async def health() -> JSONResponse:
-        return JSONResponse({"status": "ok", "service": "bff-web"})
+        return JSONResponse(
+            {
+                "status": "ok",
+                "service": "bff-web",
+                "vertical_slice": settings.enable_vertical_slice,
+            }
+        )
 
     @app.get("/schema.graphql", tags=["ops"])
     async def schema_sdl() -> PlainTextResponse:

@@ -54,5 +54,9 @@ docker compose up --build
 ## Notes
 
 - Default clients are in-memory fixtures aligned to `apps/web` mock shapes.
+- **Vertical slice:** set `BFF_ENABLE_VERTICAL_SLICE=true` (and install
+  `workers/indexing-worker`, `workers/agent-worker`, `packages/py-alama-slice`).
+  `sendChat` then runs import → index → agent → approval against
+  `fixtures/auth-bug-repo`. See `compose/run-vertical-slice.ps1`.
 - `sendChat` returns messages + `StreamHandshake.streamUrl` for SSE against task events.
 - HTTP clients to live cell services plug in behind the same ports when `use_in_memory_clients=false`.

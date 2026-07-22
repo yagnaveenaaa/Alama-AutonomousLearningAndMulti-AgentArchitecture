@@ -3,20 +3,16 @@ requires = ["hatchling>=1.25.0"]
 build-backend = "hatchling.build"
 
 [project]
-name = "bff-web"
+name = "py-alama-slice"
 version = "0.1.0"
-description = "Alama Web BFF: GraphQL composition over cell REST services."
+description = "Alama vertical slice: import → index → plan → edit → test → approve → PR."
 readme = "README.md"
 requires-python = ">=3.12"
 license = { text = "Proprietary" }
 authors = [{ name = "Alama Platform Team" }]
 dependencies = [
-    "fastapi>=0.115.0",
-    "uvicorn[standard]>=0.32.0",
-    "httpx>=0.28.0",
     "pydantic>=2.10.0",
     "pydantic-settings>=2.6.0",
-    "strawberry-graphql[fastapi]>=0.243.0",
 ]
 
 [project.optional-dependencies]
@@ -26,15 +22,16 @@ dev = [
     "mypy>=1.13.0",
     "ruff>=0.8.0",
 ]
-slice = [
-    "py-alama-slice",
+service = [
+    "fastapi>=0.115.0",
+    "uvicorn[standard]>=0.32.0",
 ]
 
 [project.scripts]
-bff-web = "bff_web.main:run"
+alama-slice = "alama_slice.cli:main"
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/bff_web"]
+packages = ["src/alama_slice"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
@@ -50,15 +47,12 @@ src = ["src", "tests"]
 [tool.ruff.lint]
 select = ["E", "F", "I", "B", "UP", "SIM", "RUF"]
 
-[tool.ruff.lint.per-file-ignores]
-"tests/*" = ["E402"]
-
 [tool.mypy]
 python_version = "3.12"
 strict = true
-packages = ["bff_web"]
+packages = ["alama_slice"]
 mypy_path = "src"
 
 [[tool.mypy.overrides]]
-module = ["uvicorn.*", "alama_common.*", "strawberry.*"]
+module = ["alama_common.*", "agent_worker.*", "indexing_worker.*"]
 ignore_missing_imports = true

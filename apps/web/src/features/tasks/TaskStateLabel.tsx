@@ -3,6 +3,8 @@ import { ui } from "@/shared/ui/PageShell";
 
 const LABELS: Record<TaskState, string> = {
   queued: "Queued",
+  importing: "Importing",
+  indexing: "Indexing",
   planning: "Planning",
   executing: "Executing",
   verifying: "Verifying",

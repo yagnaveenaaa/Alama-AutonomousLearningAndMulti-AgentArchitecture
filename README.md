@@ -26,7 +26,36 @@ Local defaults use **in-memory stores** so you can run without Postgres, Kafka, 
 
 ## Quick start
 
-### Option A — Docker Compose (recommended)
+### Vertical slice demo (recommended first)
+
+End-to-end local path:
+
+`Fix authentication bug` → import fixture repo → index → plan → retrieve → edit → pytest → approval → local PR
+
+**Headless (no UI):**
+
+```bash
+pip install -e packages/py-alama-common
+pip install -e workers/indexing-worker
+pip install -e workers/agent-worker
+pip install -e packages/py-alama-slice[dev]
+pip install pytest
+
+alama-slice run --objective "Fix authentication bug" --auto-approve
+# or: python -m alama_slice.cli run --objective "Fix authentication bug" --auto-approve
+```
+
+**With Web UI + BFF:**
+
+```powershell
+.\compose\run-vertical-slice.ps1
+```
+
+Then open http://localhost:3000 → login → **Chat** → type `Fix authentication bug` → approve the `open_pr` gate on the task page.
+
+Details: [`packages/py-alama-slice/README.md`](./packages/py-alama-slice/README.md).
+
+### Option A — Docker Compose
 
 From the monorepo root:
 
@@ -51,7 +80,7 @@ docker compose -f compose/docker-compose.yml --profile core down
 ### Option B — Local processes (Windows / no Docker)
 
 ```powershell
-# from monorepo root
+# from monorepo root — mock UI path (no live agent)
 .\compose\run-local-core.ps1
 ```
 
@@ -204,8 +233,11 @@ alama/
 ├─ apps/web/                 Next.js UI
 ├─ services/                 Domain microservices (FastAPI)
 ├─ workers/                  Indexing, agent, evaluator workers
-├─ packages/py-alama-common/ Shared Python primitives
-├─ compose/                  Local Docker Compose + Windows helper script
+├─ packages/
+│  ├─ py-alama-common/       Shared Python primitives
+│  └─ py-alama-slice/        Vertical-slice orchestrator (demo path)
+├─ fixtures/auth-bug-repo/   Sample Python repo with auth bug
+├─ compose/                  Local Docker Compose + run scripts
 ├─ evals/                    Retrieval / agent / safety / cost fixtures
 ├─ Alama-Production-Architecture-v1.1.md
 └─ Alama-Low-Level-Design-v1.0.md
@@ -284,4 +316,8 @@ Use the returned bearer token on subsequent `/v1/**` requests. See [`services/ap
 
 ## Status
 
-Reference architecture with a growing vertical-slice implementation. Defaults favor maintainability and production boundaries over demo speed. Not production-ready as a deployed multi-tenant SaaS without the full cell / Temporal / Kafka / sandbox fabric described in the HLD.
+Reference architecture with a growing vertical-slice implementation.
+
+**Working local demo:** `packages/py-alama-slice` runs import → index → plan → edit → pytest → approval → local PR against `fixtures/auth-bug-repo` (Python + deterministic model).
+
+Not production-ready as a deployed multi-tenant SaaS without the full cell / Temporal / Kafka / sandbox fabric described in the HLD.

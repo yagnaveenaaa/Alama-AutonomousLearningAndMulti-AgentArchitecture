@@ -2,6 +2,21 @@
 
 Not for production. Boots Alama services with **in-memory** defaults.
 
+## Vertical slice (live demo)
+
+```powershell
+# from monorepo root
+.\compose\run-vertical-slice.ps1
+```
+
+Or headless:
+
+```bash
+alama-slice run --objective "Fix authentication bug" --auto-approve
+```
+
+See [`packages/py-alama-slice/README.md`](../packages/py-alama-slice/README.md).
+
 ## Profiles
 
 | Profile | What starts |
@@ -27,7 +42,7 @@ docker compose -f compose/docker-compose.yml --profile core up --build
 ## Without Docker (Windows / local Python)
 
 ```powershell
-# from monorepo root
+# from monorepo root — mock UI (not the live agent slice)
 .\compose\run-local-core.ps1
 ```
 

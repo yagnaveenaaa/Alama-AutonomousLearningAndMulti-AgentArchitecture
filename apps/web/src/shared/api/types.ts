@@ -1,5 +1,7 @@
 export type TaskState =
   | "queued"
+  | "importing"
+  | "indexing"
   | "planning"
   | "executing"
   | "verifying"
@@ -38,7 +40,7 @@ export type Approval = {
 export type RepoStatus = {
   id: string;
   fullName: string;
-  indexState: "ready" | "indexing" | "failed";
+  indexState: "ready" | "indexing" | "failed" | "idle";
   lastSyncedAt: string;
 };
 

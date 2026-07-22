@@ -1,11 +1,23 @@
+/**
+ * Alama web API client.
+ *
+ * - Default: local in-browser mock (fast UI demos without backends)
+ * - NEXT_PUBLIC_BFF_URL set: live GraphQL BFF (enable vertical slice on BFF)
+ */
+
 import type {
   Approval,
   ChatMessage,
   RepoStatus,
   TaskEvent,
+  TaskState,
   TaskSummary,
   UsageSnapshot,
 } from "@/shared/api/types";
+
+const BFF_URL = (process.env.NEXT_PUBLIC_BFF_URL || "").replace(/\/$/, "");
+const SUBJECT = process.env.NEXT_PUBLIC_SLICE_SUBJECT_ID || "01900000-0000-7000-8000-000000000010";
+const TENANT = process.env.NEXT_PUBLIC_SLICE_TENANT_ID || "01900000-0000-7000-8000-000000000011";
 
 const now = () => new Date().toISOString();
 
@@ -112,7 +124,54 @@ function delay(ms = 120) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-export const api = {
+type GqlResponse<T> = { data?: T; errors?: { message: string }[] };
+
+async function gql<T>(query: string, variables?: Record<string, unknown>): Promise<T> {
+  const res = await fetch(`${BFF_URL}/graphql`, {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      "x-subject-id": SUBJECT,
+      "x-tenant-id": TENANT,
+    },
+    body: JSON.stringify({ query, variables }),
+  });
+  if (!res.ok) {
+    throw new Error(`BFF HTTP ${res.status}`);
+  }
+  const body = (await res.json()) as GqlResponse<T>;
+  if (body.errors?.length) {
+    throw new Error(body.errors.map((e) => e.message).join("; "));
+  }
+  if (!body.data) {
+    throw new Error("BFF returned empty data");
+  }
+  return body.data;
+}
+
+function mapTask(raw: {
+  id: string;
+  title: string;
+  objective: string;
+  state: string;
+  repositoryId: string;
+  repositoryName: string;
+  createdAt: string;
+  paused: boolean;
+}): TaskSummary {
+  return {
+    id: raw.id,
+    title: raw.title,
+    objective: raw.objective,
+    state: raw.state as TaskState,
+    repositoryId: raw.repositoryId,
+    repositoryName: raw.repositoryName,
+    createdAt: raw.createdAt,
+    paused: raw.paused,
+  };
+}
+
+const mockApi = {
   async listTasks(): Promise<TaskSummary[]> {
     await delay();
     return [...tasks];
@@ -238,3 +297,184 @@ export const api = {
     return { messages: chat, task };
   },
 };
+
+const liveApi = {
+  async listTasks(): Promise<TaskSummary[]> {
+    const data = await gql<{
+      tasks: {
+        id: string;
+        title: string;
+        objective: string;
+        state: string;
+        repositoryId: string;
+        repositoryName: string;
+        createdAt: string;
+        paused: boolean;
+      }[];
+    }>(`query { tasks { id title objective state repositoryId repositoryName createdAt paused } }`);
+    return data.tasks.map(mapTask);
+  },
+
+  async getTask(id: string): Promise<TaskSummary | null> {
+    const data = await gql<{
+      task: {
+        id: string;
+        title: string;
+        objective: string;
+        state: string;
+        repositoryId: string;
+        repositoryName: string;
+        createdAt: string;
+        paused: boolean;
+      } | null;
+    }>(
+      `query ($id: UUID!) { task(id: $id) { id title objective state repositoryId repositoryName createdAt paused } }`,
+      { id },
+    );
+    return data.task ? mapTask(data.task) : null;
+  },
+
+  async listEvents(taskId: string): Promise<TaskEvent[]> {
+    const data = await gql<{
+      taskEvents: {
+        id: string;
+        sequence: number;
+        eventType: string;
+        actorType: string;
+        summary: string;
+        createdAt: string;
+      }[];
+    }>(
+      `query ($taskId: UUID!) { taskEvents(taskId: $taskId) { id sequence eventType actorType summary createdAt } }`,
+      { taskId },
+    );
+    return data.taskEvents;
+  },
+
+  async listApprovals(taskId: string): Promise<Approval[]> {
+    const data = await gql<{
+      taskApprovals: { id: string; gate: string; status: string; reason?: string }[];
+    }>(
+      `query ($taskId: UUID!) { taskApprovals(taskId: $taskId) { id gate status reason } }`,
+      { taskId },
+    );
+    return data.taskApprovals.map((a) => ({
+      id: a.id,
+      gate: a.gate,
+      status: a.status as Approval["status"],
+      reason: a.reason,
+    }));
+  },
+
+  async decideApproval(taskId: string, approvalId: string, decision: "approved" | "rejected") {
+    const data = await gql<{
+      decideApproval: { id: string; gate: string; status: string; reason?: string };
+    }>(
+      `mutation ($taskId: UUID!, $approvalId: UUID!, $decision: String!) {
+        decideApproval(taskId: $taskId, approvalId: $approvalId, decision: $decision) {
+          id gate status reason
+        }
+      }`,
+      { taskId, approvalId, decision },
+    );
+    return {
+      id: data.decideApproval.id,
+      gate: data.decideApproval.gate,
+      status: data.decideApproval.status as Approval["status"],
+      reason: data.decideApproval.reason,
+    };
+  },
+
+  async listRepos(): Promise<RepoStatus[]> {
+    const data = await gql<{
+      repositories: {
+        id: string;
+        fullName: string;
+        indexState: string;
+        lastSyncedAt: string;
+      }[];
+    }>(`query { repositories { id fullName indexState lastSyncedAt } }`);
+    return data.repositories.map((r) => ({
+      id: r.id,
+      fullName: r.fullName,
+      indexState: r.indexState as RepoStatus["indexState"],
+      lastSyncedAt: r.lastSyncedAt,
+    }));
+  },
+
+  async getUsage(): Promise<UsageSnapshot> {
+    const data = await gql<{
+      usage: {
+        tokensUsed: number;
+        tokensBudget: number;
+        usdMicrosUsed: number;
+        usdMicrosBudget: number;
+      };
+    }>(`query { usage { tokensUsed tokensBudget usdMicrosUsed usdMicrosBudget } }`);
+    return data.usage;
+  },
+
+  async listChat(): Promise<ChatMessage[]> {
+    const data = await gql<{
+      chatMessages: {
+        id: string;
+        role: string;
+        content: string;
+        createdAt: string;
+        taskId?: string;
+      }[];
+    }>(`query { chatMessages { id role content createdAt taskId } }`);
+    return data.chatMessages.map((m) => ({
+      id: m.id,
+      role: m.role as ChatMessage["role"],
+      content: m.content,
+      createdAt: m.createdAt,
+      taskId: m.taskId,
+    }));
+  },
+
+  async sendChat(objective: string): Promise<{ messages: ChatMessage[]; task: TaskSummary }> {
+    const data = await gql<{
+      sendChat: {
+        messages: {
+          id: string;
+          role: string;
+          content: string;
+          createdAt: string;
+          taskId?: string;
+        }[];
+        task: {
+          id: string;
+          title: string;
+          objective: string;
+          state: string;
+          repositoryId: string;
+          repositoryName: string;
+          createdAt: string;
+          paused: boolean;
+        } | null;
+      };
+    }>(
+      `mutation ($content: String!) {
+        sendChat(content: $content) {
+          messages { id role content createdAt taskId }
+          task { id title objective state repositoryId repositoryName createdAt paused }
+        }
+      }`,
+      { content: objective },
+    );
+    const messages = data.sendChat.messages.map((m) => ({
+      id: m.id,
+      role: m.role as ChatMessage["role"],
+      content: m.content,
+      createdAt: m.createdAt,
+      taskId: m.taskId,
+    }));
+    if (!data.sendChat.task) {
+      throw new Error("sendChat did not return a task");
+    }
+    return { messages, task: mapTask(data.sendChat.task) };
+  },
+};
+
+export const api = BFF_URL ? liveApi : mockApi;

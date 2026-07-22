@@ -39,8 +39,16 @@ npm run build
 
 ## Data
 
-`shared/api/client.ts` is a BFF-shaped mock for local UI development. Production
-wires TanStack Query keys to `bff-web` GraphQL + REST/SSE streams.
+By default `shared/api/client.ts` uses an in-browser mock.
+
+For the **live vertical slice**, set:
+
+```bash
+# PowerShell
+$env:NEXT_PUBLIC_BFF_URL="http://127.0.0.1:8081"
+```
+
+and start BFF with `BFF_ENABLE_VERTICAL_SLICE=true` (see `compose/run-vertical-slice.ps1`).
 
 ## Docker
 
